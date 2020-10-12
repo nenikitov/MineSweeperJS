@@ -1,0 +1,50 @@
+:root {
+    --tileSize: 50px;
+    --backgroundColor: dimgray;
+    --backgroundColorHover: darkgray;
+}
+#border{
+    margin: 0px;
+    padding: 0px;
+    border-radius: 15px;
+    border: 5px solid black;
+}
+
+#mineField {
+    padding: 0px;
+    margin: 0px;
+    border-spacing: 0;
+    
+}
+.tile {
+    width: var(--tileSize);
+    height: var(--tileSize);
+    
+    background-color: var(--backgroundColor);
+    transition: background-color 0.25s ease;
+    transition: background-image 0.25s ease;
+    background-size: 100% 100%;
+    
+    text-align: center;
+    font-family: "Century Gothic", sans-serif;
+    font-weight: lighter;
+    font-size: 250%;
+}
+.tile:hover {
+    background-color: var(--backgroundColorHover);
+}
+.unopenedTile {
+    background-image: url(tile.png);
+}
+.openedTile {
+    background-image: url(tile_opened.png);
+}
+.flaggedTile {
+    background-image: url(tile_flagged.png);
+}
+.questionedTile {
+    background-image: url(tile_questionned.png);
+}
+.mineTile {
+    background-image: url(tile_mine.png);
+}
