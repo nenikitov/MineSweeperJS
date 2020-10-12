@@ -16,18 +16,22 @@ class Tile {
     openTile() {
         if (this.isMine) {
             this.tileStatus = TileStatus.MINE;
-          //player.isDead = true;
-          //player.isPlaying = false;
+            player.isDead = true;
+            player.isPlaying = false;
+            player.updateGameStatus();
         }
         else {
             this.tileStatus = TileStatus.OPENED;
-            this.tileElem.innerHTML = this.minesNear;
-            this.tileElem.style.color = "#" + this.colorInBetween("A9A9A9", "36AFA7", this.minesNear / 8);
+            if (!mineSweeper.tiles.some( e => !e.isMine && e.tileStatus == TileStatus.UNOPENED)) {
+                player.isPlaying = false;
+                player.updateGameStatus();
+            }
         }
         this.refreshTile();
 
     }
     flagTile() {
+        if (!player.isPlaying) return; // Igone the input if the player is dead
         switch (this.tileStatus) {
             case TileStatus.UNOPENED:
                 this.tileStatus = TileStatus.FLAGGED;
@@ -43,6 +47,10 @@ class Tile {
     }
     refreshTile() {
         this.tileElem.className = "tile " + this.tileStatus;
+        if (this.tileStatus == TileStatus.OPENED && this.minesNear) {
+            this.tileElem.innerHTML = this.minesNear;
+            this.tileElem.style.color = "#" + this.colorInBetween("A9A9A9", "36AFA7", this.minesNear / 8);
+        }
     }
     colorInBetween(col1, col2, blend) {
         /* This methond should return the blended color in between 2 colors,
@@ -60,6 +68,13 @@ class Player {
         this.isDead = false;
         this.isPlaying = true;
         this.cursorPosition = 0;
+    }
+    updateGameStatus() {
+        var output = document.getElementById("outputConsole");
+        if (!this.isPlaying) {
+                output.innerText = this.isDead ? "You exploded :(" : "You won :)";
+                output.style.color = this.isDead ? "red" : "green";
+        }
     }
 }
 class MineSweeper {
@@ -81,6 +96,8 @@ class MineSweeper {
     generateMines(cursorCoord) {
         this.numMines = Math.floor(this.height * this.width * this.difficulty);
         
+        document.getElementById("outputConsole").innerText = "There is total of " + this.numMines + " mines.";
+
         var mineIndexes = Array.from({length: this.height * this.width}, (v, k) => k); // Generate an array of all indexes
         mineIndexes.splice(mineIndexes.indexOf(cursorCoord), 1); // Remove the index of hovered tile
         
@@ -105,7 +122,11 @@ class MineSweeper {
     }
     drawField() {
         var table = document.getElementById("mineField");
-        table.setAttribute("onmouseout","selectedTile = -1;");
+        // Clear table
+        table.innerHTML = "";
+
+        document.getElementById("outputConsole").style.color = "white";
+        document.getElementById("outputConsole").innerText = "Left mouse to open a tile, right mouse to flag it";
 
         //#region Add children to table
         for (let y = 0; y < this.height; y++) {
@@ -115,7 +136,6 @@ class MineSweeper {
                 let index = (y * this.width + x);
                 cell.id = "tile_" + index;
                 cell.className = "tile " + TileStatus.UNOPENED;
-                cell.setAttribute("onmouseover","selectedTile = " + index + ";");
                 cell.setAttribute("onclick","mineSweeper.openTile(" + index + ");");
                 cell.setAttribute("oncontextMenu","mineSweeper.tiles[" + index + "].flagTile();return false;");
             }
@@ -123,10 +143,11 @@ class MineSweeper {
         //#endregion
     }
     async openTile(cursorCoord) {
-        if (!(selectedTile + 1)) return;
-
+        // Generate mines if they are not generated (on first click)
         if (!this.numMines)
                 this.generateMines(cursorCoord);
+
+        if (!player.isPlaying) return; // Igone the input if the player is dead
 
         var tilesToOpen = [cursorCoord];
         while (tilesToOpen.length) {
@@ -138,14 +159,23 @@ class MineSweeper {
                     await delay(1);
                     let validIndexes = this.validIndexesNear(currentTile);
                     for (let i = validIndexes.length; i--;) {
-                        if (this.tiles[validIndexes[i]].isMine) continue;
-                        if (this.tiles[validIndexes[i]].tileStatus == TileStatus.OPENED) continue;
-                        if (tilesToOpen.includes(validIndexes[i])) continue;
-                        tilesToOpen.push(validIndexes[i]);
+                        if (this.tiles[validIndexes[i]].isMine) continue; // If the tile is mine - skip
+                        if (this.tiles[validIndexes[i]].tileStatus == TileStatus.OPENED) continue; // If the tile is opened - skip
+                        if (tilesToOpen.includes(validIndexes[i])) continue; // If the tile is already on the list - skip
+                        tilesToOpen.push(validIndexes[i]); // If everything is fine - add it to the list
                     } 
                 }
             }
         }
+    }
+    async revealMineTiles() {
+        for (let i = this.tiles.length; i--;)
+            if (this.tiles[i].isMine)
+            {
+                this.tiles[i].openTile();
+                await delay(200);
+            }
+                
     }
     validIndexesNear(index) {
         var validIndexes = [];
@@ -167,29 +197,15 @@ class MineSweeper {
 function startMineSweeper(width, height, difficulty) { // Create needed classes and initialize variables
     mineSweeper = new MineSweeper(width, height, difficulty);
     player = new Player();
-    selectedTile = -1;
 }
 function delay(ms) {
     return new Promise(r => setTimeout(r, ms));
 }
 
-document.addEventListener('keydown', function(event) { // Event listener for opening and flagging selected tile
-    if (typeof player !== "undefined") {
-        if (player.isPlaying) {
-            switch(event.key) {
-                case "z": // Open tile
-                    mineSweeper.openTile(selectedTile);
-                    break;
-                case "x": // Flag Tile
-                    if (selectedTile + 1)
-                        mineSweeper.tiles[selectedTile].flagTile();
-                    break;
-            }
-        }
-    }
-});
-
 /*
-* Shout out to Floateresting for his help with dealing with JS. :)
-* https://github.com/floateresting
+* Shout out to Floateresting for his help with dealing with JS.
+* Without his explanaitions about some JS quirks and help with debugging,
+* I would spend 3x times more sleepless nights to finish this project than I did.
+* Visit his github: https://github.com/floateresting
+* :)
 */
