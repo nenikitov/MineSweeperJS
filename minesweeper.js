@@ -25,6 +25,7 @@ class Tile {
             this.tileElem.style.color = "#" + this.colorInBetween("A9A9A9", "36AFA7", this.minesNear / 8);
         }
         this.refreshTile();
+
     }
     flagTile() {
         switch (this.tileStatus) {
@@ -115,9 +116,36 @@ class MineSweeper {
                 cell.id = "tile_" + index;
                 cell.className = "tile " + TileStatus.UNOPENED;
                 cell.setAttribute("onmouseover","selectedTile = " + index + ";");
+                cell.setAttribute("onclick","mineSweeper.openTile(" + index + ");");
+                cell.setAttribute("oncontextMenu","mineSweeper.tiles[" + index + "].flagTile();return false;");
             }
         }
         //#endregion
+    }
+    async openTile(cursorCoord) {
+        if (!(selectedTile + 1)) return;
+
+        if (!this.numMines)
+                this.generateMines(cursorCoord);
+
+        var tilesToOpen = [cursorCoord];
+        while (tilesToOpen.length) {
+            var currentTile = tilesToOpen.shift();
+            this.tiles[currentTile].openTile();
+            if (!this.tiles[currentTile].isMine) { // This is not the bomb
+                if (!this.tiles[currentTile].minesNear) { // If there is no mines nearby
+                    // Progressive opening animation
+                    await delay(1);
+                    let validIndexes = this.validIndexesNear(currentTile);
+                    for (let i = validIndexes.length; i--;) {
+                        if (this.tiles[validIndexes[i]].isMine) continue;
+                        if (this.tiles[validIndexes[i]].tileStatus == TileStatus.OPENED) continue;
+                        if (tilesToOpen.includes(validIndexes[i])) continue;
+                        tilesToOpen.push(validIndexes[i]);
+                    } 
+                }
+            }
+        }
     }
     validIndexesNear(index) {
         var validIndexes = [];
@@ -133,26 +161,6 @@ class MineSweeper {
             validIndexes.push(index + delta);
         }
         return validIndexes;
-    }
-    async openTile(cursorCoord) {
-        var tilesToOpen = [cursorCoord];
-        while (tilesToOpen.length) {
-            var currentTile = tilesToOpen.shift();
-            this.tiles[currentTile].openTile();
-
-            if (!this.tiles[currentTile].isMine) { // This is not the bomb
-                this.tiles[currentTile].openTile();
-                if (!this.tiles[currentTile].minesNear) { // If there is no mines nearby
-                    // Progressive opening animation
-                    await delay(1);
-                    let validIndexes = this.validIndexesNear(currentTile);
-                    for (let i = validIndexes.length; i--;) {
-                        if (!this.tiles[validIndexes[i]].isMine && this.tiles[validIndexes[i]].tileStatus != TileStatus.OPENED)
-                            tilesToOpen.push(validIndexes[i]);    
-                    } 
-                }
-            }
-        }
     }
 }
 
@@ -170,12 +178,7 @@ document.addEventListener('keydown', function(event) { // Event listener for ope
         if (player.isPlaying) {
             switch(event.key) {
                 case "z": // Open tile
-                    if (selectedTile + 1)
-                    {
-                        if (!mineSweeper.numMines)
-                            mineSweeper.generateMines(selectedTile);
-                        mineSweeper.openTile(selectedTile);
-                    }
+                    mineSweeper.openTile(selectedTile);
                     break;
                 case "x": // Flag Tile
                     if (selectedTile + 1)
@@ -185,3 +188,8 @@ document.addEventListener('keydown', function(event) { // Event listener for ope
         }
     }
 });
+
+/*
+* Shout out to Floateresting for his help with dealing with JS. :)
+* https://github.com/floateresting
+*/
