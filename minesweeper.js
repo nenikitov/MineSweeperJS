@@ -14,7 +14,9 @@ class Tile {
         this.tileElem = document.getElementById("tile_" + index);
     }
     openTile() {
+        if (this.tileStatus == TileStatus.OPENED) return;
         if (this.isMine) {
+            mineSweeper.playAudio(mineSweeper.explodeAudio);
             this.tileStatus = TileStatus.MINE;
             player.isDead = true;
             player.isPlaying = false;
@@ -22,6 +24,8 @@ class Tile {
             mineSweeper.revealMineTiles();
         }
         else {
+            mineSweeper.shouldPlayAudio = true;
+            mineSweeper.playAudio(mineSweeper.openAudio);
             this.tileStatus = TileStatus.OPENED;
             if (!mineSweeper.tiles.some( e => !e.isMine && e.tileStatus == TileStatus.UNOPENED)) {
                 player.isPlaying = false;
@@ -33,6 +37,10 @@ class Tile {
     }
     flagTile() {
         if (!player.isPlaying) return; // Igone the input if the player is dead
+        mineSweeper.shouldPlayAudio = true;
+        if (this.tileStatus != TileStatus.OPENED) {
+            mineSweeper.playAudio(mineSweeper.flagAudio);
+        }
         switch (this.tileStatus) {
             case TileStatus.UNOPENED:
                 this.tileStatus = TileStatus.FLAGGED;
@@ -54,9 +62,11 @@ class Tile {
         }
     }
     colorInBetween(col1, col2, blend) {
-        /* This methond should return the blended color in between 2 colors,
-        *  but its bugged. I fixed it but I prefer this result more than the
-        *  fixed one. I came looking for copper and found gold. */ 
+        /*
+        * This methond should return the blended color in between 2 colors,
+        * but its bugged. I fixed it but I prefer this result more than the
+        * fixed one. I came looking for copper and found gold.
+        */
         col1 = parseInt(col1, 16);
         col2 = parseInt(col2, 16);
 
@@ -84,6 +94,11 @@ class MineSweeper {
         this.height = height;
         this.difficulty = difficulty;
         this.pattern =  [-this.width - 1, -this.width, -this.width + 1, -1, 1, this.width - 1, this.width, this.width + 1,];
+        
+        this.shouldPlayAudio = false;
+        this.openAudio = new Audio('index/minesweeper/open.wav');
+        this.flagAudio = new Audio('index/minesweeper/flag.wav');
+        this.explodeAudio = new Audio('index/minesweeper/explosion.wav');
 
         this.drawField();
 
@@ -146,7 +161,8 @@ class MineSweeper {
     async openTile(cursorCoord) {
         // Generate mines if they are not generated (on first click)
         if (!this.numMines)
-                this.generateMines(cursorCoord);
+            this.generateMines(cursorCoord);
+                
 
         if (!player.isPlaying) return; // Igone the input if the player is dead
 
@@ -164,18 +180,29 @@ class MineSweeper {
                         if (this.tiles[validIndexes[i]].tileStatus == TileStatus.OPENED) continue; // If the tile is opened - skip
                         if (tilesToOpen.includes(validIndexes[i])) continue; // If the tile is already on the list - skip
                         tilesToOpen.push(validIndexes[i]); // If everything is fine - add it to the list
-                    } 
+                    }
                 }
             }
         }
     }
+    playAudio(audio) {
+        if (!this.shouldPlayAudio) return;
+        if (audio.currentTime > 0.018 || audio.currentTime == 0) {
+            audio.currentTime = 0;
+            audio.play();
+        }
+    }
     async revealMineTiles() {
+        await delay(300);
+        var waitTime = 150;
         for (let i = this.tiles.length; i--;) {
             if (this.tiles[i].isMine)
             {
-                await delay(100);
+                await delay(waitTime);
                 this.tiles[i].tileStatus = TileStatus.MINE;
                 this.tiles[i].refreshTile();
+                mineSweeper.playAudio(mineSweeper.explodeAudio);
+                waitTime *= 0.85;
             }
         }
     }
