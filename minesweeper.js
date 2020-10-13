@@ -19,6 +19,7 @@ class Tile {
             player.isDead = true;
             player.isPlaying = false;
             player.updateGameStatus();
+            mineSweeper.revealMineTiles();
         }
         else {
             this.tileStatus = TileStatus.OPENED;
@@ -169,13 +170,14 @@ class MineSweeper {
         }
     }
     async revealMineTiles() {
-        for (let i = this.tiles.length; i--;)
+        for (let i = this.tiles.length; i--;) {
             if (this.tiles[i].isMine)
             {
-                this.tiles[i].openTile();
-                await delay(200);
+                await delay(100);
+                this.tiles[i].tileStatus = TileStatus.MINE;
+                this.tiles[i].refreshTile();
             }
-                
+        }
     }
     validIndexesNear(index) {
         var validIndexes = [];
