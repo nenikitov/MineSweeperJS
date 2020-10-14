@@ -202,7 +202,7 @@ class MineSweeper {
                 this.tiles[i].tileStatus = TileStatus.MINE;
                 this.tiles[i].refreshTile();
                 mineSweeper.playAudio(mineSweeper.explodeAudio);
-                waitTime *= 0.85;
+                waitTime *= 0.9;
             }
         }
     }
